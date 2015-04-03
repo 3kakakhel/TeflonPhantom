@@ -1,0 +1,22 @@
+    from numpy import *
+
+    def iavarfilter(f, h):
+        from iapconv import iapconv
+        
+        f = asarray(f).astype(float64)
+        f = f + 1e-320*(f == 0) # change zero by a very small number (prevent 'math range error') 
+        n = sum(ravel(h))
+        fm = iapconv(f, h) / n
+        f2m = iapconv(f*f, h) / n
+        g = sqrt(f2m - (fm*fm)) / fm
+        return g
+
+
+def variance_filter(input, size):
+	n = size*size
+	input_mean = mean_filter(input, size)
+	input2_mean = mean_filter(input*input, size)
+	variance = input2_mean-input_mean*input_mean
+	return variance
+
+#end

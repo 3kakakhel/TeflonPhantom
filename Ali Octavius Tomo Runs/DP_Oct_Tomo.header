@@ -1,0 +1,30 @@
+byte_order = 0;
+read_conversion : "%f "
+write_conversion : "%f "
+x_dim = 111;
+y_dim = 256;
+z_dim = 1;
+x_pixdim = 0.3;
+y_pixdim = 0.1890625;
+z_pixdim = 0.1890625;
+x_start = 0.0;
+y_start = 0.0;
+z_start = 0.0;
+vol_max = 0.0;
+vol_min = 0.0;
+bytes_pix = 4;
+datatype = 5;
+bitpix = 32;
+id = 0;
+dim_units : 
+voxel_type : 
+data_type : float
+vol_type : 
+db_name : 
+medical_record_num : 
+originator : 
+date : 
+scanner_id : 
+patient_position : 
+orientation = 0;
+comment : 

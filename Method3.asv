@@ -1,0 +1,125 @@
+% 
+% This script uses a combo of the methods I have used so far.
+%   1.  Average the image pixels
+%   2.  Replace all the phantom pixels to the previously deemed average value
+%       remembering to avoid the film position and ion chamber holes.
+%         - Deemed cut of for phantom is 1770.
+%         - Deemed average value for the phantom is 1920.
+%         - Film position and ion chamber holes are spared by just leaving 
+%           the pixels around there alone.
+%   3.  Catches stray pixels by checking if surrounding pixels are 
+%       sufficiently light enough.
+%   4.  Replaces slices where the phantom was high density in one side but 
+%       low on the other with the nearest uniform slice. I guess the phantom
+%       was kind of slanted when scaned.
+%         - Warning: Requires the "straight" slices to already have been
+%           fixed up.
+%
+
+Pavg = 1920;
+Pcut = 1770;
+
+
+for k = 1:118 % Loop over each slice.
+
+    % Read in the image slice.
+    slicename = strcat('CT.1.2.826.0.1.3680043.2.200.1576685169.411.32303.2849.',num2str(k),'.dcm');
+    I = dicomread(strcat('.\Orig\',slicename));
+
+    % Read in the meta data.
+    % Imetadata = dicominfo(slicename);
+
+    % Replace "slanted" slices with "squared" ones. - which slices are yet
+    % to be determined.
+%     if (k>=16 & k<=21)
+%         I(i,j) = O(i,j,22)
+%     elseif (k>=75 & k<=79)
+%         I(i,j) = O(i,j,74)
+%     end
+    
+    for j=1:512     % Loop over the columns.
+        for i=1:512 % Loop over the rows.
+            % Do the averaging
+            if (i == 1 || j == 1 || i == 512 || j == 512) % If on the border
+%               I(i,j) = I(i,j);                   % Do nothing
+            else
+%                 %elseif (abs(I(i,j)-I(i-1,j)) <= 260 || ...% Test size of the difference
+%                     abs(I(i,j)-I(i,j-1)) <= 260 || ...
+%                     abs(I(i,j)-I(i-1,j-1)) <= 260 || ...
+%                     abs(I(i+1,j+1)-I(i,j)) <= 260 || ...
+%                     abs(I(i+1,j)-I(i,j)) <= 260 || ...
+%                     abs(I(i,j+1)-I(i,j)) <= 260 || ...
+%                     abs(I(i-1,j+1)-I(i,j)) <= 260 || ...
+%                     abs(I(i+1,j-1)-I(i,j)) <= 260)
+                I(i,j) = I(i-1,j)   + I(i,j-1)   + I(i-1,j-1) + ...  % Compute sum of adjacent 8 pixels
+                         I(i+1,j+1) + I(i+1,j)   + I(i,j+1)   + ...
+                                      I(i-1,j+1) + I(i+1,j-1);
+                I(i,j) = I(i,j) / 8;                              % Divide to get the average and store
+            end
+            
+            % Replace the teflon pixels. - yet to determine the film
+            % position
+            if (i>=252 & i<=256)           % If film position.
+                % Do nothing                              % Do nothing.
+            elseif (i>=238 & i<=244 & j>=253 & j<=260 & k>=46 & k<=60)    % If top chamber hole.
+                %                                            % %
+            elseif (i>=265 & i<=272 & j>=253 & j<=260 & k>=46 & k<=60)    % If bottom chamber hole.
+                %                                            % %
+            else
+                if I(i,j) > Pcut   % Test if the current value is teflon or not.
+                    I(i,j) = Pavg; % If it is then replace.
+                end
+            end
+            
+            % Fix isolated pixels.
+            if (i == 1 || j == 1 || i == 512 || j == 512) % If on border.
+                % Do nothing                              % Do nothing.
+            elseif (i>=253 & i<=256 & I(i,j)<Pcut)        % If film position.
+                % Do nothing                              % Do nothing.
+            elseif (i>=238 & i<=244 & j>=253 & j<=260 & k>=46 & k<=60)    % If top chamber hole.
+                % Do nothing                              % Do nothing.
+            elseif (i>=265 & i<=272 & j>=253 & j<=260 & k>=46 & k<=60)    % If bottom chamber hole.
+                % Do nothing                              % Do nothing.
+            else
+                if ( i==253 || i==254 )            % If just above film position.
+                    % Compute sum of adjacent 5 positions not on film
+                    % position.
+                    adjsum = I(i-1,j-1) + I(i-1,j) + I(i-1,j+1) + ...
+                             I(i,j-1)   + I(i,j+1);
+                    if (adjsum >= Pavg*3)  % If 3+ around it are good pixels.
+                        I(i,j) = Pavg;   % Replace value.
+                    end
+                elseif ( i==257 || i==256 )        % If just below film position.
+                    % Compute sum of adjacent 5 positions not on film
+                    % position.
+                    adjsum = I(i,j-1) + I(i,j+1) + I(i+1,j-1) + ...
+                                        I(i+1,j) + I(i+1,j+1);
+                    if (adjsum >= Pavg*3)  % If 3+ around it are good pixels.
+                        I(i,j) = Pavg;   % Replace value.
+                    end
+                else                     % If other positions.
+                    % Compute the sum of the adjacent 8 elements.
+                    adjsum = I(i-1,j-1) + I(i-1,j) + I(i-1,j+1) + ...
+                             I(i,j-1)   + I(i,j+1) + I(i+1,j-1) + ...
+                                          I(i+1,j) + I(i+1,j+1);
+            
+                    if (adjsum >= Pavg*6) % If 6+ around it are good pixels.
+                        I(i,j) = Pavg;   % replace value.
+                    end
+                end
+            end
+        end
+    end
+  
+    % Write a short progress note.
+    fprintf('Finished slice %i of 118.\n', k);
+    
+    % Write the new image slice.
+    dicomwrite(I, strcat('.\m3\',slicename), Imetadata);
+end
+
+
+
+%
+%end
+%

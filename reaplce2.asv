@@ -1,0 +1,131 @@
+% 0. Store all pixel values into a 3d array.
+% 1. Determine the mean and std of all pixel values that could be the phantom,
+%    namely those that are above Pcut which is deemed to be 1650 for now.
+%    Rather than use all pixels from all slices, I just use a
+%    representative slice, namely slice 60.
+% 2. Replace all pixels in the range  mean +/- 3 std  by the mean.
+
+
+
+% Define the phantom pixel value cutoff.
+Pcut = 1650;
+
+% Define the representative phantom slice.
+Prep = 60;
+
+% Read in and store all the pixel values.
+M = zeros(512,512,118);
+for k=1:118
+    slicename = strcat('CT.1.2.826.0.1.3680043.2.200.1576685169.411.32303.2849.',num2str(k),'.dcm');
+    I = dicomread(strcat('.\Orig\',slicename));
+    for j=1:512
+        for i=1:512
+            M(i,j,k) = I(i,j);
+        end
+    end
+end
+
+
+% Average all the pixels
+for k=1:118
+    for j=2:511
+        for i=2:511
+            %if (abs(I(i,j)-I(i-1,j)) <= 260 || ...% Test size of the difference
+    %                     abs(I(i,j)-I(i,j-1)) <= 260 || ...
+    %                     abs(I(i,j)-I(i-1,j-1)) <= 260 || ...
+    %                     abs(I(i+1,j+1)-I(i,j)) <= 260 || ...
+    %                     abs(I(i+1,j)-I(i,j)) <= 260 || ...
+    %                     abs(I(i,j+1)-I(i,j)) <= 260 || ...
+    %                     abs(I(i-1,j+1)-I(i,j)) <= 260 || ...
+    %                     abs(I(i+1,j-1)-I(i,j)) <= 260)
+            A = M(i-1,j,k)   + M(i,j-1,k)   + M(i-1,j-1,k) + ...  % Compute sum of adjacent 8 pixels
+                M(i+1,j+1,k) + M(i+1,j,k)   + M(i,j+1,k)   + ...
+                               M(i-1,j+1,k) + M(i+1,j-1,k);
+            M(i,j,k) = A / 8;                                     % Divide to get the average and store
+            %end
+        end
+    end
+end
+
+
+% Determine the average and std of all values Pcut or higher in the representative slice.
+Pabv = [];
+l = 1;
+fprintf('Computing the mean and std of phantom values over the representative slice.\n');
+for j=1:512
+    for i=1:512
+        if M(i,j,Prep) >= Pcut
+            Pabv(l) = M(i,j,Prep);
+            l = l + 1;
+            fprintf('(i,j,k,l) = (%i,%i,%i,%i)\n',i,j,Prep,l);
+        end
+    end
+ end
+Pavg = mean(Pabv)
+Pstd = std(Pabv)
+
+
+fprintf('Making the replacements.\n');
+for k=1:118
+    slicename = strcat('CT.1.2.826.0.1.3680043.2.200.1576685169.411.32303.2849.',num2str(k),'.dcm');
+    I = dicomread(strcat('.\Orig\',slicename));
+    Imetadata = dicominfo(strcat('.\Orig\',slicename));
+    
+    for j=2:511
+        for i=2:511
+            % Make the replacement.
+            if (k>54 & k<71 & M(i,j,k) >= Pavg-4*Pstd)
+                M(i,j,k) = Pavg;
+                elseif (k<=54 & M(i,j,k) >= Pavg-5.5*Pstd)
+                M(i,j,k) = Pavg;
+            end
+
+            % Fix isolated pixels.
+            if (i>=221 & i>=225)                          % If film position.
+                % Do nothing                              % Do nothing.
+            elseif (i>=206 & i<=211 & j>=266 & j<=261)    % If top chamber hole.
+                % Do nothing                              % Do nothing.
+            elseif (i>=234 & i<=239 & j>=255 & j<=261)    % If bottom chamber hole.
+                % Do nothing                              % Do nothing.
+            else
+                if ( i==220 )            % If just above film position.
+                    % Compute sum of adjacent 5 positions not on film
+                    % position.
+                    adjsum = I(i-1,j-1) + I(i-1,j) + I(i-1,j+1) + ...
+                             I(i,j-1)   + I(i,j+1);
+                    if (adjsum >= Pavg*3)  % If 3+ around it are good pixels.
+                        I(i,j) = Pavg;   % Replace value.
+                    end
+                elseif ( i==226 )        % If just below film position.
+                    % Compute sum of adjacent 5 positions not on film
+                    % position.
+                    adjsum = I(i,j-1) + I(i,j+1) + I(i+1,j-1) + ...
+                                        I(i+1,j) + I(i+1,j+1);
+                    if (adjsum >= Pavg*3)  % If 3+ around it are good pixels.
+                        I(i,j) = Pavg;   % Replace value.
+                    end
+                else                     % If other positions.
+                    % Compute the sum of the adjacent 8 elements.
+                    adjsum = I(i-1,j-1) + I(i-1,j) + I(i-1,j+1) + ...
+                             I(i,j-1)   + I(i,j+1) + I(i+1,j-1) + ...
+                                          I(i+1,j) + I(i+1,j+1);
+            
+                    if (adjsum >= Pavg*6) % If 6+ around it are good pixels.
+                        I(i,j) = Pavg;   % replace value.
+                    end
+                end
+            end
+            fprintf('(i,j,k) = (%i,%i,%i)\n',i,j,k);
+        end
+    end
+
+    % Write a short progress note.
+    fprintf('Finished slice %i of 118.\n', k);
+
+    % Write the new image slice.
+    dicomwrite(I, strcat('F:\TeflonPhantomOrig\m4\',slicename), Imetadata);
+end
+
+%
+%end
+%

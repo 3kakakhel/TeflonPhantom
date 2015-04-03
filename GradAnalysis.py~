@@ -1,0 +1,81 @@
+# This script compares the differences between the images.
+
+# Import various libraries.
+import numpy, scipy, scipy.ndimage, scipy.signal, scipy.stats
+import dicom
+import matplotlib.pyplot, pylab
+
+# Read in the dose profiles using the Cheese and Teflon Phantoms, respectively.
+#CheesePath = "Alford,Louis_800013095/Ali_LA_RA_HalfCheese_TPS.dcm"
+#TeflonPath = "Alford,Louis_800013095/Ali_LA_RA_Teflon_TPS.dcm"
+CheesePath = "Charles,John_366241460/Ali_JC_RA_HalfCheese_TPS.dcm"
+TeflonPath = "Charles,John_366241460/Ali_JC_RA_Teflon_TPS.dcm"
+#CheesePath = "Davis,Adlai_957042695/Ali_AD_RA_HalfCheese_TPS.dcm" 
+#TeflonPath = "Davis,Adlai_957042695/Ali_AD_RA_Teflon_TPS.dcm"
+#CheesePath = "Perryman,Deola_957043663/Ali_DP_RA_HalfCheese_TPS.dcm"
+#TeflonPath = "Perryman,Deola_957043663/Ali_DP_RA_Teflon_TPS.dcm"
+#CheesePath = "Sturges,John_20020682/Ali_JS_RA_HalfCheese_TPS.dcm"
+#TeflonPath = "Sturges,John_20020682/Ali_JS_RA_Teflon_TPS.dcm"
+#CheesePath = "Walker,Pauline_957044312/Ali_PW_RA_HalfCheese_TPS.dcm"
+#TeflonPath = "Walker,Pauline_957044312/Ali_PW_RA_Teflon_TPS.dcm"
+CheeseProfile = dicom.read_file(CheesePath)
+TeflonProfile = dicom.read_file(TeflonPath)
+print CheesePath
+print TeflonPath
+
+
+# Grab the pixel array data for both phantom profiles. Data is given as 6 digit 
+# integers giving the dose in units of 10^-5 Gy.
+CheeseArray = CheeseProfile.pixel_array
+TeflonArray = TeflonProfile.pixel_array
+
+# Show the dose profiles.
+pylab.imshow(CheeseArray, cmap=pylab.cm.gray)
+pylab.show()
+pylab.imshow(TeflonArray, cmap=pylab.cm.gray)
+pylab.show()
+
+# Show a horizontal cross section of the dose profiles right through the 
+# middle before the denoising.
+matplotlib.pyplot.plot(range(1,513), CheeseArray[255,:], "ro", \
+		       label="Cheese Original")
+matplotlib.pyplot.plot(range(1,513), TeflonArray[255,:], "bo", \
+		       label="Teflon Original")
+
+
+# Show a horizontal cross section of the gradient profiles right through the 
+# middle after the denoising.
+matplotlib.pyplot.plot(range(1,513), CheeseArray[255,:], "r-", \
+		       label="Cheese Denoised")
+matplotlib.pyplot.plot(range(1,513), TeflonArray[255,:], "b-", \
+		       label="Teflon Denoised")
+matplotlib.pyplot.xlim([0,512])
+matplotlib.pyplot.legend()
+matplotlib.pyplot.show()
+
+
+# Show some cross sections of the gradient profiles.
+#   -Through the middle horizontally
+#   -Through the middle vertically
+#   -Through the high gradient edge at the bottom horizontally
+matplotlib.pyplot.plot(range(1,513), CheeseGrad[255,:], "ro", \
+		       label="Horizontal")
+matplotlib.pyplot.plot(range(1,513), CheeseGrad[:,250], "bo", \
+		       label="Vertical")
+matplotlib.pyplot.plot(range(1,513), CheeseGrad[301,:], "go", \
+		       label="High Grad")
+matplotlib.pyplot.xlim([0,512])
+matplotlib.pyplot.legend()
+matplotlib.pyplot.show()
+matplotlib.pyplot.plot(range(1,513), TeflonGrad[255,:], "ro", \
+		       label="Horizontal")
+matplotlib.pyplot.plot(range(1,513), TeflonGrad[:,250], "bo", \
+		       label="Vertical")
+matplotlib.pyplot.plot(range(1,513), TeflonGrad[301,:], "go", \
+		       label="High Grad")
+matplotlib.pyplot.xlim([0,512])
+matplotlib.pyplot.legend()
+matplotlib.pyplot.show()
+
+
+#End

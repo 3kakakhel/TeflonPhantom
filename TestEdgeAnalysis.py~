@@ -1,0 +1,89 @@
+# This script is just a test of trying out the edge analysis. I use the TPS
+# dose profiles since those are all that I can open at this time. I shall have
+# to require the inputed dose profiles to be in DICOM format not in RIT's rv4
+# or any other. I do this because I am unaware of any python libraries that
+# can allow me to open them.
+
+
+# Import the scipy, scipy.ndimage, scipy.stats, pydicom, and matplotlib 
+# libraries.
+import scipy, scipy.ndimage, dicom, matplotlib
+
+# Read in the dose profiles using the Cheese and Teflon Phantoms, respectively.
+CheesePath = "../Alford,Louis_800013095/Ali_LA_RA_HalfCheese_TPS.dcm"
+TeflonPath = "../Alford,Louis_800013095/Ali_LA_RA_Teflon_TPS.dcm"
+
+CheeseProfile = dicom.read_file(CheesePath)
+TeflonProfile = dicom.read_file(TeflonPath)
+
+# Grab the pixel array data for both phantom profiles. Data is given as 6 digit 
+# integers giving the dose in units of 10^-5 Gy.
+CheeseArray = CheeseProfile.pixel_array
+TeflonArray = TeflonProfile.pixel_array
+
+# Compute the magnitude of the gradient for each phantoms' profile. This is 
+# accomplished by convolving these with the optimized differentiating kernel 
+# shown below. Each kernel below corresponds to the horizontal (x) and vertical 
+# (y) directions, respectively.
+# 
+#         [ 17  61  17]           [-17  0  17]
+#    Kx = [  0   0   0]  and Ky = [-61  0  61]
+#         [-17 -61 -17]           [-17  0  17]
+#
+# These kernels are superior to the standard Sobel kernels in our usage due to
+# their greater rotational invariance. I am interested in the magnitude of the
+# gradient, G, which is obtained by 
+#          __________________
+#         |      2         2
+#    G = \|(Kx*I)  + (Ky*I)
+#
+# where * represents convolution and I represents the input array. Note that I 
+# convert back and forth between the 'array' and 'matrix' constructs. I do this
+# to be able to perform the matrix math needed.
+kernelx = scipy.array([[17,61,17],[0,0,0],[-17,-61,-17]])
+kernely = scipy.array([[-17,0,17],[-61,0,61],[-17,0,17]])
+
+CheeseGradx = scipy.ndimage.convolve(CheeseArray, kernelx, mode="reflect")
+CheeseGrady = scipy.ndimage.convolve(CheeseArray, kernely, mode="reflect")
+TeflonGradx = scipy.ndimage.convolve(TeflonArray, kernelx, mode="reflect")
+TeflonGrady = scipy.ndimage.convolve(TeflonArray, kernely, mode="reflect")
+
+CheeseGradx = scipy.matrix(CheeseGradx)
+CheeseGrady = scipy.matrix(CheeseGrady)
+TeflonGradx = scipy.matrix(TeflonGradx)
+TeflonGrady = scipy.matrix(TeflonGrady)
+
+CheeseGrad  = sqrt(CheeseGradx^2 + CheeseGrady^2)
+TeflonGrad  = sqrt(TeflonGradx^1 + TeflonGrady^2)
+
+CheeseGrad = scipy.array(CheeseGrad)
+TeflonGrad = scipy.array(TeflonGrad)
+
+# Convert the units from their current 10^-5 Gy to 10^-2 Gy , ie cGy.
+CF = (10^-2)/(10^-5)
+CheeseGrad = CF*CheeseGrad
+TeflonGrad = CF*TeflonGrad
+
+#
+# Note: I have excluded the normalization factor in the kernels.
+#       I need to add them.
+#       The gradient arrays are non integers.
+#
+
+# Show the gradient profiles.
+# pylab.imshow(CheeseGrad, cmap=pylab.cm.bone)
+# pylab.show()
+# pyleb.imshow(TeflonGrad, cmap=pylab.cm.bone)
+# pylab.show()
+
+# Create a histogram of the doses
+CheeseGradMax = int(math.floor(CheeseGrad.max()))
+TeflonGradMax = int(math.floor(TeflonGrad.max()))
+CheeseHist = scipy.ndimage.histogram(CheeseGrad, 1, \
+		                     CheeseGradMax, \
+				     CheeseGradMax)
+TeflonHist = scipy.ndimage.histogram(TeflonGrad, 1, \
+		                     TeflonGradMax, \
+				     TeflonGradMax)
+
+#End

@@ -1,0 +1,13 @@
+import dicom
+import pylab
+
+# Read in the dicom file.
+DataFile = dicom.read_file("Ali_LA_RA_Teflon_TPS.dcm")
+
+# Store the pixel data.
+DoseProfile = DataFile.pixel_array
+
+# Display a plot of the dose profile.
+# learn how to set my own cmap.
+pylab.imshow(ds.pixel_array, cmap=pylab.cm.bone)
+pylab.show()
